@@ -3,12 +3,14 @@ import os
 import subprocess
 import sys
 import webbrowser
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated
 
 import typer
 
-from rotator import flow, inventory, providers
+from rotator import due, flow, inventory, providers
+from rotator.audit import AuditLog
 
 PROJECT_DIR = Path(__file__).resolve().parents[2]
 InventoryOption = Annotated[
@@ -68,8 +70,9 @@ class TerminalPrompter:
         return typer.confirm(message)
 
 
-def _report(step: str, detail: str) -> None:
-    typer.echo(f"{step}: {detail}")
+def _audit_log(inventory_path: Path) -> AuditLog:
+    default = inventory_path.resolve().parent / "audit.log"
+    return AuditLog(Path(os.environ.get("ROTATOR_AUDIT_LOG", default)))
 
 
 @app.command()
@@ -85,6 +88,12 @@ def rotate(
         typer.echo(f"error: no credential {credential_id} in {path}", err=True)
         raise typer.Exit(1)
     credential = matches[0]
+    audit = _audit_log(path)
+
+    def report(step: str, detail: str) -> None:
+        typer.echo(f"{step}: {detail}")
+        audit.record(credential.id, credential.provider, step, detail)
+
     try:
         provider = providers.for_credential(credential, os.environ)
         targets = flow.targets_for(credential)
@@ -96,10 +105,29 @@ def rotate(
             typer.echo(f"{i}. {step}")
         return
     try:
-        outcome = flow.rotate(credential, provider, targets, TerminalPrompter(yes), _report)
+        outcome = flow.rotate(credential, provider, targets, TerminalPrompter(yes), report)
     except flow.RotationError as e:
+        audit.record(credential.id, credential.provider, "failed", str(e))
         typer.echo(f"error: {e}", err=True)
         raise typer.Exit(1) from e
     if not outcome.old_revoked:
+        audit.record(credential.id, credential.provider, "rotated", "old credential NOT revoked")
         raise typer.Exit(2)
+    audit.record(credential.id, credential.provider, "rotated", "old credential revoked")
     typer.echo(f"{credential.id} rotated")
+
+
+@app.command("due")
+def due_command(
+    path: InventoryOption = Path("inventory.yaml"),
+    within: Annotated[int, typer.Option(help="Days ahead that count as due soon.")] = 14,
+) -> None:
+    """Show when each credential is due; exit 1 if any is overdue."""
+    credentials = _load(path)
+    today = datetime.now(UTC).date()
+    rows = due.report(credentials, _audit_log(path), today, within)
+    for row in sorted(rows, key=lambda r: (r.days_left is None, r.days_left)):
+        when = f"{row.due_on} ({row.days_left:+d}d)" if row.due_on else "-"
+        typer.echo(f"{row.status:<14} {row.credential_id:<30} {when}")
+    if any(r.status == "overdue" for r in rows):
+        raise typer.Exit(1)

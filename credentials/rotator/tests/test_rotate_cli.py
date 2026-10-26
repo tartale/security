@@ -56,6 +56,9 @@ def test_rotate_end_to_end_with_real_adapters(vault, tmp_path, monkeypatch):
     assert json.loads(vault.read_text())[0]["login"]["password"] == "rolled-secret"
     assert "rolled-secret" not in result.output
     assert "cf rotated" in result.output
+    audit = (tmp_path / "audit.log").read_text()
+    assert '"step": "rotated"' in audit
+    assert "rolled-secret" not in audit
 
 
 @respx.mock
@@ -73,6 +76,9 @@ def test_failed_verification_leaves_everything_untouched(vault, tmp_path, monkey
     assert result.exit_code == 1
     assert env.read_text() == "CF=old\n"
     assert "rolled-secret" not in result.output
+    audit = (tmp_path / "audit.log").read_text()
+    assert '"step": "failed"' in audit
+    assert '"step": "rotated"' not in audit
 
 
 @respx.mock

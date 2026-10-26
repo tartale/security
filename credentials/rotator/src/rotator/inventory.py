@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -48,6 +49,7 @@ class Credential:
     kind: str | None = None
     grace_days: int = 0
     notes: str | None = None
+    last_rotated: date | None = None
 
 
 def _mapping(value: Any, where: str, required: set[str], optional: set[str]) -> dict[str, Any]:
@@ -80,6 +82,19 @@ def _text(value: Any, where: str) -> str:
     return value
 
 
+def _date(value: Any, where: str) -> date | None:
+    if value is None:
+        return None
+    if isinstance(value, str):
+        try:
+            return date.fromisoformat(value)
+        except ValueError:
+            pass
+    elif type(value) is date:
+        return value
+    raise InventoryError(f"{where}: expected a date like 2026-10-26")
+
+
 def _store(raw: Any, where: str) -> Store:
     data = _mapping(raw, where, {"type", "item"}, {"field"})
     return Store(
@@ -105,7 +120,7 @@ def _credential(raw: Any, index: int) -> Credential:
         raw,
         where,
         {"id", "provider", "mode", "store", "destinations", "rotate_every_days"},
-        {"provider_ref", "kind", "grace_days", "notes"},
+        {"provider_ref", "kind", "grace_days", "notes", "last_rotated"},
     )
     destinations = data["destinations"]
     if not isinstance(destinations, list) or not destinations:
@@ -126,6 +141,7 @@ def _credential(raw: Any, index: int) -> Credential:
         kind=data.get("kind"),
         grace_days=_days(data.get("grace_days", 0), f"{where}.grace_days", 0),
         notes=data.get("notes"),
+        last_rotated=_date(data.get("last_rotated"), f"{where}.last_rotated"),
     )
 
 

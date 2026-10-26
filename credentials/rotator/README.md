@@ -63,7 +63,7 @@ Details and verification status per provider: [docs/providers.md](docs/providers
 4. Jira Data Center adapter (auto create done; revoke is an assisted step, see #6).
 5. Assisted flow engine + GitHub / RunPod adapters (done; Modal: see the open issue on two-part tokens).
 6. Bitwarden self-rotation (last, manual step).
-7. Audit log, dry-run mode, due-date reporting.
+7. Audit log, dry-run mode, due-date reporting (done).
 
 ## Development
 
@@ -80,6 +80,7 @@ Run from the repo root (the launcher sets up the venv on first use):
 ```
 ./security credentials rotator rotate ID --dry-run   # show the steps, change nothing
 ./security credentials rotator rotate ID             # rotate one credential
+./security credentials rotator due [--within 14]     # what is due; exit 1 if any is overdue
 ```
 
 `rotate` asks before overwriting (`--yes` skips that one question). For assisted providers it
@@ -88,6 +89,11 @@ prompt. Revoking the old credential is a console step you confirm; exit code 2 m
 rotation worked but you said the old credential is still active. Secrets come in only through
 the hidden prompt and the environment (manager tokens such as `CLOUDFLARE_ROTATOR_TOKEN`,
 `JIRA_ROTATOR_TOKEN`; `BW_SESSION` for Bitwarden), never argv.
+
+Every step is appended to `audit.log` (JSON lines, next to the inventory file; override with
+`ROTATOR_AUDIT_LOG`). It records credential id, provider, step and outcome, never values. `due`
+computes `last rotation + rotate_every_days` from the latest `rotated` entry or the inventory's
+optional `last_rotated: YYYY-MM-DD`, whichever is later.
 
 ## Open decisions
 

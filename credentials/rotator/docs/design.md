@@ -106,7 +106,8 @@ credentials:
 
 `rotator check` validates the file (unknown fields are rejected so a stray secret value or typo
 fails loudly). Optional per-credential fields: `kind`, `grace_days` (default 0), `notes`;
-`store.field` defaults to `password`.
+`store.field` defaults to `password`; `last_rotated` (a date) seeds `rotator due` for
+credentials rotated before the tool existed.
 
 Per-credential fields to decide: cadence, grace period, who else consumes it, and a
 free-text note for manual follow-ups (for example, "also set in CI").
@@ -119,7 +120,9 @@ free-text note for manual follow-ups (for example, "also set in CI").
 - `--dry-run` shows the plan (which steps would run, which files would change) without
   creating or writing anything.
 - Confirmation required for revoke and overwrite by default.
-- Audit log records credential id, provider, timestamp, steps and outcomes, never values.
+- Audit log (`audit.log`, JSON lines, mode `0600`, next to the inventory) records credential id,
+  provider, timestamp, steps and outcomes, never values. A `rotated` entry marks a completed
+  rotation and drives `rotator due`.
 - Tests use mocked HTTP and throwaway tokens only.
 
 ## Bitwarden handling

@@ -8,7 +8,7 @@ set -euo pipefail
 # "${PLUGINS_DIR}/languages/go.sh"
 # "${PLUGINS_DIR}/languages/java.sh"
 # "${PLUGINS_DIR}/languages/python2.sh"
-# "${PLUGINS_DIR}/languages/python3.sh"
+"${PLUGINS_DIR}/languages/python3.sh"
 # "${PLUGINS_DIR}/languages/react.sh"
 # "${PLUGINS_DIR}/languages/ruby.sh"
 # "${PLUGINS_DIR}/languages/rust.sh"

@@ -122,3 +122,32 @@ def test_missing_manager_token_is_a_clean_error(tmp_path):
     )
     assert result.exit_code == 1
     assert "CLOUDFLARE_ROTATOR_TOKEN is not set" in result.output
+
+
+@respx.mock
+def test_rotate_unlocks_the_vault_with_a_hidden_prompt(vault, tmp_path, monkeypatch):
+    monkeypatch.delenv("BW_SESSION")
+    monkeypatch.setenv("CLOUDFLARE_ROTATOR_TOKEN", "manager")
+    prompts = []
+    monkeypatch.setattr("getpass.getpass", lambda prompt: prompts.append(prompt) or "correct-horse")
+    env = tmp_path / ".env"
+    respx.put(f"{API}/user/tokens/{TOKEN_ID}/value").mock(return_value=ok("rolled-secret"))
+    respx.get(f"{API}/user/tokens/verify").mock(
+        return_value=ok({"id": TOKEN_ID, "status": "active"})
+    )
+    path = inventory_file(tmp_path, env)
+    result = runner.invoke(app, ["rotate", "cf", "--yes", "--inventory", str(path)])
+    assert result.exit_code == 0, result.output
+    assert len(prompts) == 1
+    assert json.loads(vault.read_text())[0]["login"]["password"] == "rolled-secret"
+    monkeypatch.delenv("BW_SESSION")
+
+
+def test_rotate_stops_cleanly_when_the_vault_cannot_be_unlocked(vault, tmp_path, monkeypatch):
+    monkeypatch.delenv("BW_SESSION")
+    monkeypatch.setenv("CLOUDFLARE_ROTATOR_TOKEN", "manager")
+    monkeypatch.setattr("getpass.getpass", lambda prompt: "wrong")
+    path = inventory_file(tmp_path, tmp_path / ".env")
+    result = runner.invoke(app, ["rotate", "cf", "--yes", "--inventory", str(path)])
+    assert result.exit_code == 1
+    assert "Invalid master password" in result.output

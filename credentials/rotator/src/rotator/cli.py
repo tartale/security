@@ -9,7 +9,7 @@ from typing import Annotated
 
 import typer
 
-from rotator import due, flow, inventory, providers
+from rotator import destinations, due, flow, inventory, providers
 from rotator.audit import AuditLog
 
 PROJECT_DIR = Path(__file__).resolve().parents[2]
@@ -105,8 +105,10 @@ def rotate(
             typer.echo(f"{i}. {step}")
         return
     try:
+        if any(isinstance(t.adapter, destinations.Bitwarden) for t in targets):
+            destinations.ensure_session(getpass.getpass)
         outcome = flow.rotate(credential, provider, targets, TerminalPrompter(yes), report)
-    except flow.RotationError as e:
+    except (flow.RotationError, destinations.DestinationError) as e:
         audit.record(credential.id, credential.provider, "failed", str(e))
         typer.echo(f"error: {e}", err=True)
         raise typer.Exit(1) from e

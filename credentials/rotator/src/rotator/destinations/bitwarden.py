@@ -3,12 +3,14 @@ import json
 import os
 import shutil
 import subprocess
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
 from rotator.destinations.base import DestinationError
 
 HIDDEN_FIELD = 1
+PASSWORD_ENV = "ROTATOR_BW_PASSWORD"
 
 
 @dataclass(frozen=True)
@@ -53,7 +55,7 @@ class Bitwarden:
         self._edit(backup.item)
 
     def _get(self) -> dict[str, Any]:
-        out = self._bw(["get", "item", self.item])
+        out = self._run(["get", "item", self.item])
         try:
             return json.loads(out)
         except json.JSONDecodeError as e:
@@ -61,20 +63,62 @@ class Bitwarden:
 
     def _edit(self, item: dict[str, Any], *secrets: str) -> None:
         encoded = base64.b64encode(json.dumps(item).encode()).decode()
-        self._bw(["edit", "item", item["id"]], stdin=encoded, scrub=secrets)
+        self._run(["edit", "item", item["id"]], stdin=encoded, scrub=secrets)
 
-    def _bw(self, args: list[str], stdin: str | None = None, scrub: tuple[str, ...] = ()) -> str:
-        bw = shutil.which("bw")
-        if bw is None:
-            raise DestinationError("bw not found on PATH; install the Bitwarden CLI")
-        if not os.environ.get("BW_SESSION"):
-            raise DestinationError("BW_SESSION is not set; unlock the vault with `bw unlock`")
-        result = subprocess.run(
-            [bw, "--nointeraction", *args], input=stdin, capture_output=True, text=True
-        )
-        if result.returncode != 0:
-            message = (result.stderr.strip().splitlines() or ["bw failed"])[0]
-            for secret in scrub:
-                message = message.replace(secret, "[redacted]")
-            raise DestinationError(f"{self.item}: {message}")
-        return result.stdout
+    def _run(self, args: list[str], stdin: str | None = None, scrub: tuple[str, ...] = ()) -> str:
+        try:
+            return run_bw(args, stdin=stdin, scrub=scrub, session_required=True)
+        except DestinationError as e:
+            raise DestinationError(f"{self.item}: {e}") from e
+
+
+def run_bw(
+    args: list[str],
+    stdin: str | None = None,
+    env: dict[str, str] | None = None,
+    scrub: tuple[str, ...] = (),
+    session_required: bool = False,
+) -> str:
+    """Run `bw` and return stdout. Errors carry bw's first stderr line with `scrub` removed."""
+    bw = shutil.which("bw")
+    if bw is None:
+        raise DestinationError("bw not found on PATH; install the Bitwarden CLI")
+    if session_required and not os.environ.get("BW_SESSION"):
+        raise DestinationError("BW_SESSION is not set; unlock the vault with `bw unlock`")
+    result = subprocess.run(
+        [bw, "--nointeraction", *args],
+        input=stdin,
+        capture_output=True,
+        text=True,
+        env={**os.environ, **(env or {})},
+    )
+    if result.returncode != 0:
+        message = (result.stderr.strip().splitlines() or ["bw failed"])[0]
+        for secret in scrub:
+            message = message.replace(secret, "[redacted]")
+        raise DestinationError(message)
+    return result.stdout
+
+
+def ensure_session(read_password: Callable[[str], str]) -> None:
+    """Make `BW_SESSION` available to this process and its children, unlocking if needed.
+
+    The master password goes to `bw` through the child's environment, never argv.
+    """
+    if os.environ.get("BW_SESSION"):
+        return
+    try:
+        status = json.loads(run_bw(["status"])).get("status")
+    except json.JSONDecodeError as e:
+        raise DestinationError("unexpected output from bw status") from e
+    if status == "unauthenticated":
+        raise DestinationError("not logged in to Bitwarden; run `bw login --apikey` once")
+    password = read_password("Bitwarden master password (hidden): ")
+    session = run_bw(
+        ["unlock", "--passwordenv", PASSWORD_ENV, "--raw"],
+        env={PASSWORD_ENV: password},
+        scrub=(password,),
+    ).strip()
+    if not session:
+        raise DestinationError("bw unlock returned no session key")
+    os.environ["BW_SESSION"] = session

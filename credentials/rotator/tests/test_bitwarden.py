@@ -1,9 +1,11 @@
 import json
+import os
 from pathlib import Path
 
 import pytest
 
 from conftest import ITEM
+from rotator import destinations
 from rotator.destinations import Bitwarden, DestinationError
 
 
@@ -70,3 +72,39 @@ def test_item_without_login_cannot_hold_password(vault):
     vault.write_text(json.dumps([{"id": "abc-123", "name": "Cloudflare DNS token"}]))
     with pytest.raises(DestinationError, match="no login"):
         Bitwarden("Cloudflare DNS token").write("x")
+
+
+def test_ensure_session_keeps_an_existing_session(vault):
+    destinations.ensure_session(lambda prompt: pytest.fail("should not prompt"))
+
+
+def test_ensure_session_unlocks_with_a_hidden_prompt_and_exports_the_session(
+    vault, monkeypatch, tmp_path
+):
+    monkeypatch.delenv("BW_SESSION")
+    prompts = []
+
+    def read(prompt):
+        prompts.append(prompt)
+        return "correct-horse"
+
+    destinations.ensure_session(read)
+    assert os.environ["BW_SESSION"] == "session-key-from-unlock"
+    assert "hidden" in prompts[0]
+    assert "correct-horse" not in (tmp_path / "argv.log").read_text()
+    monkeypatch.delenv("BW_SESSION")
+
+
+def test_ensure_session_wrong_password(vault, monkeypatch):
+    monkeypatch.delenv("BW_SESSION")
+    with pytest.raises(DestinationError, match="Invalid master password") as e:
+        destinations.ensure_session(lambda prompt: "wrong-password")
+    assert "wrong-password" not in str(e.value)
+    assert "BW_SESSION" not in os.environ
+
+
+def test_ensure_session_requires_a_prior_login(vault, monkeypatch):
+    monkeypatch.delenv("BW_SESSION")
+    monkeypatch.setenv("FAKE_BW_STATUS", "unauthenticated")
+    with pytest.raises(DestinationError, match="bw login --apikey"):
+        destinations.ensure_session(lambda prompt: pytest.fail("should not prompt"))

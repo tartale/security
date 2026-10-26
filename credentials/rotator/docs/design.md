@@ -80,7 +80,10 @@ Adapters live in `src/rotator/destinations/`, built from inventory entries by
   follows symlinks. Values that cannot be quoted safely (empty, or containing a quote or
   newline) are rejected without echoing them.
 - `bitwarden`: `bw get item <name>` then `bw edit item <id>` with the base64 JSON on stdin, so
-  the secret never reaches argv. Needs `bw` on `PATH` and `BW_SESSION` in the environment.
+  the secret never reaches argv. Needs `bw` on `PATH` and a session: `BW_SESSION` from the
+  environment, or `ensure_session` unlocks with a hidden master-password prompt (`bw status`,
+  then `bw unlock --passwordenv ... --raw` with the password only in the child's environment).
+  The tool never logs in; run `bw login --apikey` once.
   `password` writes `login.password`; any other `field` is a custom hidden field.
 
 Destinations in scope: `envfile` (covers `.env` and `.envrc`) and `bitwarden` (via the

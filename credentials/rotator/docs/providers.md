@@ -141,7 +141,10 @@ Docs: https://docs.runpod.io/get-started/credentials
   bootstrapping problem: rotating it breaks the tool's own login. Do it last, manually.
 - Writing items: `bw edit item <id>` reads base64 JSON from stdin (documented pipe example
   `bw get item | jq | bw encode | bw edit item <id>`), which keeps the secret out of argv.
-  Session via `BW_SESSION`; `bw unlock --passwordenv` unlocks non-interactively.
+  Session via `BW_SESSION`; `bw unlock --passwordenv VAR --raw` unlocks non-interactively and
+  prints only the session key; `bw status` returns JSON with `status` of `unlocked`, `locked`
+  or `unauthenticated`; global flags `--nointeraction` and `--raw` exist. (confirmed, Bitwarden
+  CLI docs)
   API-key login (`bw login --apikey`, `BW_CLIENTID`/`BW_CLIENTSECRET`) works for automation,
   then `bw unlock`. (confirmed)
 

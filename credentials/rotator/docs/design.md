@@ -9,6 +9,10 @@ create -> verify -> store (Bitwarden) -> distribute (env/envrc) -> post-verify -
 ```
 
 - The old credential stays valid until every destination has succeeded.
+- Exception: providers that roll in place (`rolls_in_place`, e.g. Cloudflare) invalidate the
+  old secret at `create`, so there is no fallback and no `revoke` step. The flow engine must
+  write the store first, retry failed writes, and keep the new secret in memory until every
+  destination has it or the user decides.
 - Any failure before `revoke` leaves the old credential working and reports which step
   failed. Destination adapters keep a backup (`read_current`) so a partial write can be
   rolled back.
@@ -35,6 +39,12 @@ Provider adapter:
 | `console_url(spec)` | URL to open for creating or revoking (assisted; also revoke fallback) |
 | `verify(secret)` | Cheap authenticated call proving the secret works |
 | `revoke(spec)` | Revoke the old credential (auto) or prompt the user (assisted) |
+
+Provider adapters live in `src/rotator/providers/`; `for_credential` builds one from an
+inventory entry plus the environment (manager tokens come from env vars named in
+`provider_ref`, never from the inventory file). The interface so far is `capability`,
+`rolls_in_place`, `create()` and `verify(secret)`; `revoke`/`console_url` arrive with the
+providers that need them.
 
 Destination adapter:
 

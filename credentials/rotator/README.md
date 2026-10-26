@@ -59,7 +59,7 @@ Details and verification status per provider: [docs/providers.md](docs/providers
 
 1. Inventory schema + loader.
 2. Destination adapters: envfile/envrc, Bitwarden (via `bw` CLI). (done)
-3. Cloudflare adapter (auto, via roll endpoint).
+3. Cloudflare adapter (auto, via roll endpoint). (done)
 4. Jira Data Center adapter (auto create; revoke path to confirm).
 5. Assisted flow engine + GitHub / RunPod / Modal adapters.
 6. Bitwarden self-rotation (last, manual step).

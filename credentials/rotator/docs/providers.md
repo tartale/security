@@ -8,7 +8,7 @@ implementing.
 
 | Provider | Mode | Create new | Revoke old |
 |---|---|---|---|
-| Cloudflare | auto | API roll (confirmed) | implicit in roll (confirmed via third-party source) |
+| Cloudflare | auto | API roll (confirmed) | implicit in roll (confirmed) |
 | Jira Data Center | auto | REST create (confirmed) | UI/admin confirmed; REST delete unverified |
 | GitHub fine-grained PAT | assisted | UI only (no API, per community thread + tooling) | UI |
 | GitHub classic PAT | assisted | UI only (unverified beyond docs showing UI flow) | UI |
@@ -19,14 +19,22 @@ implementing.
 
 ## Cloudflare (auto)
 
-- Roll: `PUT https://api.cloudflare.com/client/v4/user/tokens/{token_id}/value`, body `{}`.
-  Returns the new token value in `result`. Same token ID, new secret. Requires the
-  "API Tokens Write" permission on the calling token. (confirmed)
-- Account-owned tokens have an equivalent roll endpoint under the account. (confirmed,
-  via third-party connector docs; check Cloudflare's own reference)
-- Verify: `GET /user/tokens/verify` with the new token. (confirmed)
+- Roll: `PUT https://api.cloudflare.com/client/v4/user/tokens/{token_id}/value`. Returns the
+  new token value in `result`. Same token ID, new secret. Requires the "API Tokens Write"
+  permission on the calling token. (confirmed, Cloudflare API reference)
+- Account-owned tokens: `PUT /accounts/{account_id}/tokens/{token_id}/value`, requires
+  "Account API Tokens Write". (confirmed, Cloudflare API reference)
+- Rolling invalidates the previous value ("Rolling your API token into a new one will
+  invalidate the previous token"); timing and any grace period are not documented. The old
+  secret cannot be kept as a fallback, so the new secret must be stored before anything else.
+  (confirmed)
+- Verify: `GET /user/tokens/verify` or `GET /accounts/{account_id}/tokens/verify` with the new
+  token; success is `result.status == "active"`. (confirmed, Cloudflare API reference)
+- Adapter: `provider_ref` takes `token_id` (required), `account_id` (selects the account
+  endpoints), and `manager_token_env` (env var holding the calling token, default
+  `CLOUDFLARE_ROTATOR_TOKEN`). The adapter also checks that `result.id` equals `token_id`.
 - Open question: bootstrap/rotation of the token that has "API Tokens Write".
-- Console fallback: dashboard > profile > API Tokens (URL unverified).
+- Console fallback: dashboard > profile > API Tokens (URL unverified, not used by the adapter).
 
 Docs: https://developers.cloudflare.com/api/operations/user-api-tokens-roll-token
 

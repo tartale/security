@@ -1,8 +1,11 @@
 import subprocess
 import sys
+from pathlib import Path
 from typing import Annotated
 
 import typer
+
+from rotator import inventory
 
 app = typer.Typer(help="Rotate API keys and tokens.", no_args_is_help=True)
 
@@ -23,3 +26,18 @@ def test(
 def lint() -> None:
     """Check style and import order."""
     _run("ruff", "check", ".")
+
+
+@app.command()
+def check(
+    path: Annotated[
+        Path, typer.Option("--inventory", envvar="ROTATOR_INVENTORY", help="Inventory file.")
+    ] = Path("inventory.yaml"),
+) -> None:
+    """Validate the inventory file."""
+    try:
+        credentials = inventory.load(path)
+    except inventory.InventoryError as e:
+        typer.echo(f"error: {e}", err=True)
+        raise typer.Exit(1) from e
+    typer.echo(f"{len(credentials)} credentials ok")

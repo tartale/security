@@ -67,11 +67,12 @@ Details and verification status per provider: [docs/providers.md](docs/providers
 
 ## Development
 
+Run from the repo root (the launcher sets up the venv on first use):
+
 ```
-python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
-rotator lint
-rotator test
-rotator check --inventory inventory.yaml   # validate the inventory
+./security credentials rotator lint
+./security credentials rotator test
+./security credentials rotator check --inventory inventory.yaml   # validate the inventory
 ```
 
 ## Open decisions

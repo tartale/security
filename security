@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Root CLI launcher. Creates the venv on first run, then hands off to the typer app.
+set -euo pipefail
+
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+venv="${SECURITY_VENV:-$root/.venv}"
+
+if [[ ! -x "$venv/bin/security" ]]; then
+  [[ -d "$venv" ]] || python3 -m venv "$venv"
+  "$venv/bin/pip" install --quiet -e "$root/credentials/rotator[dev]" -e "$root[dev]"
+fi
+
+exec "$venv/bin/security" "$@"

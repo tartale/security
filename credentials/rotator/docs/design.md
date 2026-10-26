@@ -1,6 +1,6 @@
 # Design sketch
 
-Pre-code. Everything here is a proposal to be challenged, not a spec.
+Everything here is a proposal to be challenged, not a spec.
 
 ## Core flow (per credential)
 
@@ -87,8 +87,6 @@ free-text note for manual follow-ups (for example, "also set in CI").
 
 ## Open questions
 
-- Language and CLI framework.
-- Build on keyrotate or contribute adapters upstream.
 - How to bootstrap and rotate the credential the tool itself uses per provider (for
   example, the Cloudflare token with "API Tokens Write").
 - Whether a Jira REST delete endpoint exists for PATs.

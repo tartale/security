@@ -3,7 +3,7 @@
 A personal tool for rotating API keys and tokens across a fixed set of providers, then
 distributing the new values to a password manager and to local env files.
 
-**Status:** pre-code. This repo currently holds research and a design sketch.
+**Status:** scaffolded (Python + typer); adapters not yet implemented.
 
 ## Goal
 
@@ -65,9 +65,15 @@ Details and verification status per provider: [docs/providers.md](docs/providers
 6. Bitwarden self-rotation (last, manual step).
 7. Audit log, dry-run mode, due-date reporting.
 
+## Development
+
+```
+python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
+rotator lint
+rotator test
+```
+
 ## Open decisions
 
-- Implementation language and CLI framework (undecided).
-- Whether to build on or contribute to keyrotate.
 - Whether GitHub gets a browser-automation adapter later (brittle; needs a logged-in Chrome).
 - Rotation cadence and grace periods per credential.

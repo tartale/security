@@ -10,8 +10,10 @@ Cloudflare, Jira Data Center, Bitwarden) and distributing them to Bitwarden and
 
 ## Current state
 
-Pre-code. Language/framework not yet chosen. Do not assume one; confirm with the user
-before scaffolding.
+Scaffolded: Python 3.11+ with typer, built from scratch (not on keyrotate). Source in
+`src/rotator/`, tests in `tests/`. The `rotator` CLI owns dev steps: `rotator lint`,
+`rotator test [pytest args]`. Dependencies are pinned by major only. Work is tracked in
+GitHub issues; the roadmap in `README.md` maps to them.
 
 ## Hard rules (security)
 

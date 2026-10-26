@@ -19,14 +19,31 @@ create -> verify -> store (Bitwarden) -> distribute (env/envrc) -> post-verify -
 - `revoke` is `auto` where the provider supports it, otherwise the tool opens the console
   page for the old credential and asks you to confirm when done.
 
+## Running a rotation
+
+`rotator rotate ID [--dry-run] [--yes]` (`src/rotator/flow.py`):
+
+1. Confirm the overwrite (`--yes` answers this one question; manual-step acknowledgements are
+   never auto-answered).
+2. Obtain the secret: `create()` for `auto`, or open `console_url()` and read a hidden prompt
+   for `assisted`.
+3. `verify`, then read a backup from every target (the store first, then each destination).
+4. Write every target. If one fails, restore the ones already written and stop; the old
+   credential is never revoked on failure. For providers that roll in place there is nothing
+   to restore to, so a failed write is retried (with confirmation) until every target has the
+   new value or the user declines, and the error lists what was not written.
+5. `verify` again, then open `revoke_url()` and ask the user to confirm the old credential is
+   revoked. Exit 0 = done, 1 = failed, 2 = rotated but the old credential is still active.
+
+The inventory `mode` must equal the adapter's capability.
+
 ## Modes
 
 - `auto`: provider adapter implements `create` against an API (Cloudflare roll, Jira Data
   Center PAT create).
 - `assisted`: provider adapter implements `console_url` instead. The tool opens it in the
-  system browser, you create the credential, and paste it into a masked prompt (or the
-  tool reads and then clears the clipboard). `verify` still runs before anything is
-  written.
+  system browser, you create the credential, and paste it into a masked prompt. `verify`
+  still runs before anything is written.
 
 ## Adapter interfaces (language-agnostic)
 
@@ -35,16 +52,17 @@ Provider adapter:
 | Member | Purpose |
 |---|---|
 | `capability` | `auto` or `assisted` |
-| `create(spec)` | Mint or roll a credential, return the new secret (auto only) |
-| `console_url(spec)` | URL to open for creating or revoking (assisted; also revoke fallback) |
+| `rolls_in_place` | Creating the new secret invalidates the old one (Cloudflare) |
+| `create()` | Mint or roll a credential, return the new secret (auto only) |
+| `console_url()` | Page to open so the user creates the credential (assisted only) |
 | `verify(secret)` | Cheap authenticated call proving the secret works |
-| `revoke(spec)` | Revoke the old credential (auto) or prompt the user (assisted) |
+| `revoke_url()` | Console page where the old credential is revoked; none if nothing to revoke |
+
+Revoking is always a console step the user confirms; no adapter calls a revoke API.
 
 Provider adapters live in `src/rotator/providers/`; `for_credential` builds one from an
 inventory entry plus the environment (manager tokens come from env vars named in
-`provider_ref`, never from the inventory file). The interface so far is `capability`,
-`rolls_in_place`, `create()` and `verify(secret)`; `revoke`/`console_url` arrive with the
-providers that need them.
+`provider_ref`, never from the inventory file).
 
 Destination adapter:
 
@@ -97,7 +115,7 @@ free-text note for manual follow-ups (for example, "also set in CI").
 
 - Secrets are never passed in argv, logged, or echoed. Redaction in all output and in the
   audit log.
-- Input only via masked prompt, stdin, or clipboard (cleared after reading).
+- Input only via masked prompt or the environment.
 - `--dry-run` shows the plan (which steps would run, which files would change) without
   creating or writing anything.
 - Confirmation required for revoke and overwrite by default.

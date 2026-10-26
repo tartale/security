@@ -147,8 +147,8 @@ def test_factory_builds_cloudflare():
 
 
 def test_factory_rejects_unimplemented_provider():
-    with pytest.raises(ProviderError, match="no adapter for provider runpod"):
-        providers.for_credential(credential("runpod", {}), {})
+    with pytest.raises(ProviderError, match="no adapter for provider modal"):
+        providers.for_credential(credential("modal", {}), {})
 
 
 @respx.mock

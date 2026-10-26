@@ -1,10 +1,9 @@
 from collections.abc import Mapping
 from typing import Any
 
-import httpx
-
 from rotator import inventory
 from rotator.providers.base import ProviderError
+from rotator.providers.http import send
 
 DEFAULT_CURRENT_TOKEN_ENV = "JIRA_ROTATOR_TOKEN"
 EXPIRY_SLACK_DAYS = 14
@@ -59,6 +58,9 @@ class JiraDataCenter:
             ref["base_url"], ref.get("token_name", credential.id), expiration_days, current_token
         )
 
+    def revoke_url(self) -> str:
+        return f"{self.base_url}/secure/ViewProfile.jspa"
+
     def create(self) -> str:
         body = self._call(
             "POST",
@@ -75,16 +77,7 @@ class JiraDataCenter:
         self._call("GET", "/rest/api/2/myself", secret)
 
     def _call(self, method: str, path: str, bearer: str, **kwargs: Any) -> Any:
-        try:
-            response = httpx.request(
-                method,
-                self.base_url + path,
-                headers={"Authorization": f"Bearer {bearer}"},
-                timeout=30,
-                **kwargs,
-            )
-        except httpx.HTTPError as e:
-            raise ProviderError(f"jira: {type(e).__name__} calling {method} {path}") from e
+        response = send("jira", method, self.base_url + path, bearer, **kwargs)
         if response.is_error:
             raise ProviderError(f"jira: {method} {path} failed ({response.status_code})")
         try:

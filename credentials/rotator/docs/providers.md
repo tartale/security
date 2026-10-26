@@ -14,7 +14,7 @@ implementing.
 | GitHub classic PAT | assisted | UI only (unverified beyond docs showing UI flow) | UI |
 | GitHub Enterprise Server | assisted | UI flow documented (confirmed); API absence unverified | UI |
 | RunPod | assisted | Console only per docs (undocumented GraphQL unverified) | Console |
-| Modal | assisted | Dashboard or `modal token new` browser flow (API unverified) | Dashboard |
+| Modal | assisted | Dashboard or `modal token new` browser flow (API unverified); two-part token, not implemented yet | Dashboard |
 | Bitwarden | assisted | Rotate button in web app; CLI/API not found | n/a (rotation invalidates old) |
 
 ## Cloudflare (auto)
@@ -84,16 +84,27 @@ Docs: https://confluence.atlassian.com/display/ENTERPRISE/Using+personal+access+
   endpoints). Per-endpoint support is documented in GitHub's REST reference.
 - Alternative: GitHub Apps give short-lived installation tokens and avoid rotation for
   CI-style use. Not a drop-in replacement for personal tokens.
-- Console URLs (unverified): `https://github.com/settings/personal-access-tokens/new`,
-  `https://github.com/settings/tokens/new`. Query-parameter prefill (name, description,
-  expiry) is believed to work but unverified.
-- Optional later adapter: browser automation (brittle, needs logged-in Chrome).
+- Create URL for fine-grained: `https://github.com/settings/personal-access-tokens/new`, with
+  documented prefill parameters `name` (max 40 chars), `description`, `target_name`,
+  `expires_in` (1-366 or `none`) and permission levels. (confirmed, GitHub docs) The adapter
+  prefills `name` and `expires_in` (`rotate_every_days + grace_days + 14`, capped at 366).
+- Classic: GitHub documents no creation URL or prefill, only the UI path. The adapter opens
+  `https://github.com/settings/tokens/new` with no parameters. (URL unverified)
+- Delete: Settings > Developer settings > Personal access tokens, the adapter opens
+  `/settings/personal-access-tokens` (fine-grained) or `/settings/tokens` (classic).
+  (UI path confirmed; direct URLs unverified)
+- Verify: `GET https://api.github.com/user` with the new token as bearer.
+- Adapter: inventory `kind` is required (`fine-grained` or `classic`); `provider_ref` takes
+  `host` and `token_name` (default: credential id).
 
 ## GitHub Enterprise Server (assisted)
 
 - Same PAT UI flow per GitHub's Enterprise Server docs. Use the instance host for console
   URLs. Behavior varies by GHES version; check the version in use. If it is GitHub
   Enterprise Cloud (github.com with enterprise accounts), it behaves like github.com.
+- Verify: `GET https://HOST/api/v3/user`. (GHES REST base path; not re-checked against the
+  docs for the specific version in use)
+- Adapter: provider `github-enterprise` requires `provider_ref.host`; otherwise as GitHub.
 
 ## RunPod (assisted)
 
@@ -105,6 +116,10 @@ Docs: https://confluence.atlassian.com/display/ENTERPRISE/Using+personal+access+
   secrets, not API keys. (confirmed; separate concept)
 - No documented endpoint to mint API keys. An undocumented GraphQL mutation is possible.
   (unverified)
+- REST API: base `https://rest.runpod.io/v1`, bearer API key. (confirmed) It has no
+  whoami endpoint, so the adapter verifies with `GET /pods` (an authenticated read; the docs
+  do not state its cost). The console URL used for create and delete is
+  `https://console.runpod.io/user/credentials`.
 
 Docs: https://docs.runpod.io/get-started/credentials
 

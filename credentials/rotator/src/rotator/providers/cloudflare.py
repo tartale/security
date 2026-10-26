@@ -1,9 +1,8 @@
 from collections.abc import Mapping
 from typing import Any
 
-import httpx
-
 from rotator.providers.base import ProviderError
+from rotator.providers.http import send
 
 API = "https://api.cloudflare.com/client/v4"
 DEFAULT_MANAGER_TOKEN_ENV = "CLOUDFLARE_ROTATOR_TOKEN"
@@ -42,6 +41,9 @@ class Cloudflare:
             raise ProviderError(f"{env_name} is not set; it must hold a token that can roll tokens")
         return cls(ref["token_id"], manager_token, ref.get("account_id"))
 
+    def revoke_url(self) -> None:
+        return None
+
     def create(self) -> str:
         result = self._call("PUT", self._roll_path, self._manager_token, json={})
         if not isinstance(result, str) or not result:
@@ -56,16 +58,7 @@ class Cloudflare:
             raise ProviderError("cloudflare: new token belongs to a different token id")
 
     def _call(self, method: str, path: str, bearer: str, **kwargs: Any) -> Any:
-        try:
-            response = httpx.request(
-                method,
-                API + path,
-                headers={"Authorization": f"Bearer {bearer}"},
-                timeout=30,
-                **kwargs,
-            )
-        except httpx.HTTPError as e:
-            raise ProviderError(f"cloudflare: {type(e).__name__} calling {method} {path}") from e
+        response = send("cloudflare", method, API + path, bearer, **kwargs)
         try:
             body = response.json()
         except ValueError:

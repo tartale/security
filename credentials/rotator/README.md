@@ -52,8 +52,8 @@ Details and verification status per provider: [docs/providers.md](docs/providers
   stays valid until every destination has succeeded.
 - **Pre-opened console URLs** for assisted providers, opened in the system browser so the
   tool never touches your sessions or passwords.
-- **Secrets never appear in argv, logs, or shell history.** Masked prompt or clipboard
-  input only.
+- **Secrets never appear in argv, logs, or shell history.** Masked prompt or
+  environment input only.
 
 ## Roadmap
 
@@ -61,7 +61,7 @@ Details and verification status per provider: [docs/providers.md](docs/providers
 2. Destination adapters: envfile/envrc, Bitwarden (via `bw` CLI). (done)
 3. Cloudflare adapter (auto, via roll endpoint). (done)
 4. Jira Data Center adapter (auto create done; revoke is an assisted step, see #6).
-5. Assisted flow engine + GitHub / RunPod / Modal adapters.
+5. Assisted flow engine + GitHub / RunPod adapters (done; Modal: see the open issue on two-part tokens).
 6. Bitwarden self-rotation (last, manual step).
 7. Audit log, dry-run mode, due-date reporting.
 
@@ -74,6 +74,20 @@ Run from the repo root (the launcher sets up the venv on first use):
 ./security credentials rotator test
 ./security credentials rotator check --inventory inventory.yaml   # validate the inventory
 ```
+
+## Usage
+
+```
+./security credentials rotator rotate ID --dry-run   # show the steps, change nothing
+./security credentials rotator rotate ID             # rotate one credential
+```
+
+`rotate` asks before overwriting (`--yes` skips that one question). For assisted providers it
+opens the console in your browser, prints the URL, and reads the new secret from a hidden
+prompt. Revoking the old credential is a console step you confirm; exit code 2 means the
+rotation worked but you said the old credential is still active. Secrets come in only through
+the hidden prompt and the environment (manager tokens such as `CLOUDFLARE_ROTATOR_TOKEN`,
+`JIRA_ROTATOR_TOKEN`; `BW_SESSION` for Bitwarden), never argv.
 
 ## Open decisions
 

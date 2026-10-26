@@ -1,0 +1,1 @@
+- [Sandbox and project gotchas](sandbox-and-project-gotchas.md) — no CI by decision, no ensurepip/venv workaround, token scope, open decisions

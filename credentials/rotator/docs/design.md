@@ -64,6 +64,10 @@ credentials:
     grace_days: 0
 ```
 
+`rotator check` validates the file (unknown fields are rejected so a stray secret value or typo
+fails loudly). Optional per-credential fields: `kind`, `grace_days` (default 0), `notes`;
+`store.field` defaults to `password`.
+
 Per-credential fields to decide: cadence, grace period, who else consumes it, and a
 free-text note for manual follow-ups (for example, "also set in CI").
 

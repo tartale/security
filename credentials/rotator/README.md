@@ -71,6 +71,7 @@ Details and verification status per provider: [docs/providers.md](docs/providers
 python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
 rotator lint
 rotator test
+rotator check --inventory inventory.yaml   # validate the inventory
 ```
 
 ## Open decisions

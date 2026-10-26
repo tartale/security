@@ -9,7 +9,7 @@ implementing.
 | Provider | Mode | Create new | Revoke old |
 |---|---|---|---|
 | Cloudflare | auto | API roll (confirmed) | implicit in roll (confirmed) |
-| Jira Data Center | auto | REST create (confirmed) | UI/admin confirmed; REST delete unverified |
+| Jira Data Center | auto | REST create (confirmed; response field unverified) | UI/admin confirmed; REST delete unverified |
 | GitHub fine-grained PAT | assisted | UI only (no API, per community thread + tooling) | UI |
 | GitHub classic PAT | assisted | UI only (unverified beyond docs showing UI flow) | UI |
 | GitHub Enterprise Server | assisted | UI flow documented (confirmed); API absence unverified | UI |
@@ -45,8 +45,21 @@ Docs: https://developers.cloudflare.com/api/operations/user-api-tokens-roll-toke
   existing PAT as bearer). You cannot create a PAT on behalf of another user. (confirmed)
 - Available from Jira Core/Software 8.14 and Service Management 4.15. PATs are not
   scopeable in Data Center. (confirmed)
+- Verify: `GET {base_url}/rest/api/2/myself` with the new PAT as bearer. (confirmed, Jira
+  Server REST reference)
+- Create response body is not documented; the adapter reads the token from `rawToken`, a
+  field name taken from an Atlassian developer-community answer. (unverified; the adapter
+  fails with a clear error if it is absent)
+- Limits: `atlassian.pats.max.tokens.per.user` (default 10), `atlassian.pats.max.tokens.expiry.days`
+  (default 365). (confirmed)
 - Revoke: Profile > Personal Access Tokens, or admin screen (System > Administering
-  personal access tokens). REST delete endpoint probably exists. (unverified)
+  personal access tokens). No REST delete in Atlassian's PAT docs; a feature request
+  (JRASERVER-78824) suggests none exists for other users. The adapter does not revoke;
+  revoking the old PAT is an assisted console step. (REST delete: unverified)
+- Adapter: `provider_ref` takes `base_url` (required), `token_name` (default: credential id),
+  `expiration_days` (default: `rotate_every_days + grace_days + 14`; must fit the instance
+  maximum), `current_token_env` (env var holding the existing PAT that authenticates the create
+  call, default `JIRA_ROTATOR_TOKEN`).
 - Admins can set limits/expiry rules via system properties (e.g.
   `atlassian.pats.eternal.tokens.enabled`). (confirmed)
 - Confirmed by the user: the instance is self-hosted, so this is Data Center/Server, not

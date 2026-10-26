@@ -103,7 +103,10 @@ Docs: https://docs.runpod.io/get-started/credentials
   web UI under Machine accounts. (confirmed for UI; API unverified)
 - As the central store the tool writes to, Bitwarden's own credential is a
   bootstrapping problem: rotating it breaks the tool's own login. Do it last, manually.
-- Writing items: `bw` CLI supports item edit; API-key login (`bw login --apikey`,
-  `BW_CLIENTID`/`BW_CLIENTSECRET`) works for automation, then `bw unlock`. (confirmed)
+- Writing items: `bw edit item <id>` reads base64 JSON from stdin (documented pipe example
+  `bw get item | jq | bw encode | bw edit item <id>`), which keeps the secret out of argv.
+  Session via `BW_SESSION`; `bw unlock --passwordenv` unlocks non-interactively.
+  API-key login (`bw login --apikey`, `BW_CLIENTID`/`BW_CLIENTSECRET`) works for automation,
+  then `bw unlock`. (confirmed)
 
 Docs: https://bitwarden.com/help/personal-api-key

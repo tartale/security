@@ -40,8 +40,20 @@ Destination adapter:
 
 | Member | Purpose |
 |---|---|
-| `read_current(target)` | Return current value or a backup handle for rollback |
-| `write(target, secret)` | Write the new value |
+| `read_current()` | Return a backup handle (held in memory, hidden from `repr`) for rollback |
+| `write(secret)` | Write the new value |
+| `restore(backup)` | Put the backed-up state back |
+
+Adapters live in `src/rotator/destinations/`, built from inventory entries by
+`for_destination` / `for_store`.
+
+- `envfile`: replaces every `VAR=` / `export VAR=` line, appends if absent (with `export` only
+  for `*.envrc`), keeps other lines and the file mode (new files are `0600`), writes atomically,
+  follows symlinks. Values that cannot be quoted safely (empty, or containing a quote or
+  newline) are rejected without echoing them.
+- `bitwarden`: `bw get item <name>` then `bw edit item <id>` with the base64 JSON on stdin, so
+  the secret never reaches argv. Needs `bw` on `PATH` and `BW_SESSION` in the environment.
+  `password` writes `login.password`; any other `field` is a custom hidden field.
 
 Destinations in scope: `envfile` (covers `.env` and `.envrc`) and `bitwarden` (via the
 `bw` CLI).

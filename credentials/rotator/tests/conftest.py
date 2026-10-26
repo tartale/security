@@ -11,7 +11,14 @@ db = json.load(open(os.environ["FAKE_BW_DB"]))
 with open(os.environ["FAKE_BW_ARGV"], "a") as log:
     log.write(json.dumps(sys.argv[1:]) + "\\n")
 args = [a for a in sys.argv[1:] if a != "--nointeraction"]
-if args[:2] == ["get", "item"]:
+if args == ["status"]:
+    print(json.dumps({{"status": os.environ.get("FAKE_BW_STATUS", "locked")}}))
+elif args[:1] == ["unlock"]:
+    assert args[1] == "--passwordenv" and args[3:] == ["--raw"]
+    if os.environ.get(args[2]) != os.environ["FAKE_BW_PASSWORD"]:
+        sys.exit(print("Invalid master password.", file=sys.stderr) or 1)
+    print("session-key-from-unlock")
+elif args[:2] == ["get", "item"]:
     item = next((i for i in db if i["name"] == args[2]), None)
     if item is None:
         sys.exit(print("Not found.", file=sys.stderr) or 1)
@@ -47,4 +54,5 @@ def vault(tmp_path, monkeypatch):
     monkeypatch.setenv("FAKE_BW_DB", str(db))
     monkeypatch.setenv("FAKE_BW_ARGV", str(tmp_path / "argv.log"))
     monkeypatch.setenv("BW_SESSION", "session")
+    monkeypatch.setenv("FAKE_BW_PASSWORD", "correct-horse")
     return db

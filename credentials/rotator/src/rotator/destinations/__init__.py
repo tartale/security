@@ -1,6 +1,6 @@
 from rotator import inventory
 from rotator.destinations.base import Destination, DestinationError
-from rotator.destinations.bitwarden import Bitwarden
+from rotator.destinations.bitwarden import Bitwarden, ensure_session
 from rotator.destinations.envfile import EnvFile
 
 
@@ -17,6 +17,7 @@ __all__ = [
     "Destination",
     "DestinationError",
     "EnvFile",
+    "ensure_session",
     "for_destination",
     "for_store",
 ]

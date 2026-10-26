@@ -88,7 +88,9 @@ opens the console in your browser, prints the URL, and reads the new secret from
 prompt. Revoking the old credential is a console step you confirm; exit code 2 means the
 rotation worked but you said the old credential is still active. Secrets come in only through
 the hidden prompt and the environment (manager tokens such as `CLOUDFLARE_ROTATOR_TOKEN`,
-`JIRA_ROTATOR_TOKEN`; `BW_SESSION` for Bitwarden), never argv.
+`JIRA_ROTATOR_TOKEN`), never argv. If the vault is locked and `BW_SESSION` is unset, `rotate`
+asks for the Bitwarden master password (hidden) and unlocks it for that run; log in once first
+with `bw login --apikey`.
 
 Every step is appended to `audit.log` (JSON lines, next to the inventory file; override with
 `ROTATOR_AUDIT_LOG`). It records credential id, provider, step and outcome, never values. `due`

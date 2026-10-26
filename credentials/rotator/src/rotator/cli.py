@@ -10,8 +10,11 @@ from rotator import inventory
 app = typer.Typer(help="Rotate API keys and tokens.", no_args_is_help=True)
 
 
+PROJECT_DIR = Path(__file__).resolve().parents[2]
+
+
 def _run(*args: str) -> None:
-    raise typer.Exit(subprocess.call([sys.executable, "-m", *args]))
+    raise typer.Exit(subprocess.call([sys.executable, "-m", *args], cwd=PROJECT_DIR))
 
 
 @app.command(context_settings={"ignore_unknown_options": True})

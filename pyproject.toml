@@ -1,0 +1,29 @@
+[project]
+name = "security"
+version = "0.1.0"
+description = "Root CLI for the security projects."
+requires-python = ">=3.11"
+dependencies = ["typer>=0,<1", "rotator"]
+
+[project.optional-dependencies]
+dev = ["pytest>=9,<10", "ruff>=0,<1"]
+
+[project.scripts]
+security = "security.cli:app"
+
+[build-system]
+requires = ["setuptools>=80"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]

@@ -4,8 +4,8 @@ import pytest
 import yaml
 from typer.testing import CliRunner
 
+from conftest import app
 from rotator import inventory
-from rotator.cli import app
 
 EXAMPLE = Path(__file__).parent.parent / "inventory.example.yaml"
 
@@ -68,8 +68,10 @@ def test_missing_file_and_bad_yaml(tmp_path):
 
 def test_check_command(tmp_path):
     runner = CliRunner()
-    ok = runner.invoke(app, ["check", "--inventory", str(EXAMPLE)])
+    ok = runner.invoke(app, ["rotate", "--check", "--inventory", str(EXAMPLE)])
     assert ok.exit_code == 0
     assert "4 credentials ok" in ok.output
-    bad = runner.invoke(app, ["check", "--inventory", str(write(tmp_path, {"id": "x"}))])
+    bad = runner.invoke(
+        app, ["rotate", "--check", "--inventory", str(write(tmp_path, {"id": "x"}))]
+    )
     assert bad.exit_code == 1

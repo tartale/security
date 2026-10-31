@@ -5,9 +5,9 @@ import pytest
 import yaml
 from typer.testing import CliRunner
 
+from conftest import app
 from rotator import due, inventory
 from rotator.audit import AuditLog
-from rotator.cli import app
 
 runner = CliRunner()
 
@@ -99,7 +99,7 @@ def entry(id, days, last_rotated=None):
 
 def test_due_command_lists_and_flags_overdue(tmp_path):
     path = write_inventory(tmp_path, entry("old", 30, "2020-01-01"), entry("new", 30))
-    result = runner.invoke(app, ["due", "--inventory", str(path)])
+    result = runner.invoke(app, ["rotate", "--due", "--inventory", str(path)])
     assert result.exit_code == 1
     assert result.output.index("overdue") < result.output.index("never rotated")
 
@@ -107,7 +107,7 @@ def test_due_command_lists_and_flags_overdue(tmp_path):
 def test_due_command_ok_exits_zero(tmp_path):
     today = datetime.now(UTC).date().isoformat()
     path = write_inventory(tmp_path, entry("fresh", 90, today))
-    result = runner.invoke(app, ["due", "--inventory", str(path)])
+    result = runner.invoke(app, ["rotate", "--due", "--inventory", str(path)])
     assert result.exit_code == 0
     assert "ok" in result.output
 

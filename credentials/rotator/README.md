@@ -70,17 +70,17 @@ Details and verification status per provider: [docs/providers.md](docs/providers
 Run from the repo root (the launcher sets up the venv on first use):
 
 ```
-./security credentials rotator lint
-./security credentials rotator test
-./security credentials rotator check --inventory inventory.yaml   # validate the inventory
+./security credentials lint
+./security credentials test
+./security credentials rotate --check --inventory inventory.yaml   # validate the inventory
 ```
 
 ## Usage
 
 ```
-./security credentials rotator rotate ID --dry-run   # show the steps, change nothing
-./security credentials rotator rotate ID             # rotate one credential
-./security credentials rotator due [--within 14]     # what is due; exit 1 if any is overdue
+./security credentials rotate ID --dry-run   # show the steps, change nothing
+./security credentials rotate ID             # rotate one credential
+./security credentials rotate --due [--within 14]   # what is due; exit 1 if any is overdue
 ```
 
 `rotate` asks before overwriting (`--yes` skips that one question). For assisted providers it

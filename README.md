@@ -4,7 +4,7 @@ Personal security tooling. One root CLI, `./security`, controls every subproject
 
 ```
 ./security --help
-./security credentials rotator --help   # token rotation, see credentials/rotator/
+./security credentials --help   # rotate, test, lint; see credentials/rotator/
 ./security lint                         # lint every project
 ./security test                         # test every project
 ```

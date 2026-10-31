@@ -4,10 +4,12 @@ Only identifiers and locations are asked for, never secret values. The wizard st
 empty prompt, keeps everything already in the file, and saves after each addition.
 """
 
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+import questionary
 import typer
 
 from rotator import inventory
@@ -73,6 +75,12 @@ def _fields(fields: tuple[Field, ...]) -> dict[str, str]:
 
 
 def _choose(prompt: str, options: list[str], default: str | None = None) -> str:
+    """Arrow-key list on a terminal; typing one of the names otherwise (pipes, tests)."""
+    if sys.stdin.isatty() and sys.stdout.isatty():
+        picked = questionary.select(prompt, choices=options, default=default).ask()
+        if picked is None:
+            raise typer.Abort()
+        return picked
     while True:
         value = typer.prompt(f"{prompt} ({', '.join(options)})", default=default).strip()
         if value in options:
@@ -108,17 +116,27 @@ def _add_provider(data: dict[str, Any], path: Path) -> None:
     typer.echo(f"  saved provider {entry['id']}")
 
 
-def _add_destinations() -> list[dict[str, str]]:
+NEW_ENV_FILE = "new"
+
+
+def _env_file(known: list[str]) -> str:
+    if known:
+        picked = _choose("Env file", [*known, NEW_ENV_FILE], known[0])
+        if picked != NEW_ENV_FILE:
+            return picked
+    return typer.prompt("Env file path (e.g. ~/projects/x/.envrc)")
+
+
+def _add_destinations(data: dict[str, Any]) -> list[dict[str, str]]:
+    known = list(dict.fromkeys(d["path"] for c in data["credentials"] for d in c["destinations"]))
     destinations = []
     while True:
+        path = _env_file(known)
         destinations.append(
-            {
-                "type": "envfile",
-                "path": typer.prompt("  Env file path (e.g. ~/projects/x/.envrc)"),
-                "var": typer.prompt("  Variable name in that file"),
-            }
+            {"type": "envfile", "path": path, "var": typer.prompt("Variable name in that file")}
         )
-        if not typer.confirm("  Add another env file?", default=False):
+        known = [p for p in known if p != path]
+        if not typer.confirm("Add another env file?", default=False):
             return destinations
 
 
@@ -144,7 +162,7 @@ def _add_credential(data: dict[str, Any], path: Path) -> None:
         "type": "bitwarden",
         "item": typer.prompt("Bitwarden item name", default=entry["id"]),
     }
-    entry["destinations"] = _add_destinations()
+    entry["destinations"] = _add_destinations(data)
     entry["rotate_every_days"] = _days("Rotate every how many days", 90)
     data["credentials"].append(entry)
     inventory.save(path, data)

@@ -11,20 +11,22 @@ def test_root_lists_credentials():
     assert "credentials" in result.output
 
 
-def test_credentials_lists_rotator():
+def test_credentials_has_rotate_test_and_lint():
     result = runner.invoke(app, ["credentials", "--help"])
     assert result.exit_code == 0
-    assert "rotator" in result.output
-
-
-def test_rotator_commands_are_mounted():
-    result = runner.invoke(app, ["credentials", "rotator", "--help"])
-    assert result.exit_code == 0
-    for command in ("check", "lint", "test"):
+    for command in ("rotate", "test", "lint"):
         assert command in result.output
+    assert "rotator" not in result.output
 
 
-def test_test_and_lint_commands_exist():
+def test_rotate_offers_check_and_due():
+    result = runner.invoke(app, ["credentials", "rotate", "--help"])
+    assert result.exit_code == 0
+    for option in ("--check", "--due"):
+        assert option in result.output
+
+
+def test_root_test_and_lint_commands_exist():
     result = runner.invoke(app, ["--help"])
     assert "test" in result.output
     assert "lint" in result.output

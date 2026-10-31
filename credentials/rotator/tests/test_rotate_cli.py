@@ -5,8 +5,7 @@ import respx
 import yaml
 from typer.testing import CliRunner
 
-from conftest import ITEM
-from rotator.cli import app
+from conftest import ITEM, app
 
 API = "https://api.cloudflare.com/client/v4"
 TOKEN_ID = "ed17574386854bf78a67040be0a770b0"
@@ -151,3 +150,11 @@ def test_rotate_stops_cleanly_when_the_vault_cannot_be_unlocked(vault, tmp_path,
     result = runner.invoke(app, ["rotate", "cf", "--yes", "--inventory", str(path)])
     assert result.exit_code == 1
     assert "Invalid master password" in result.output
+
+
+def test_rotate_requires_exactly_one_of_id_check_or_due(tmp_path):
+    path = inventory_file(tmp_path, tmp_path / ".envrc")
+    for args in ([], ["cf", "--check"], ["--check", "--due"]):
+        result = runner.invoke(app, ["rotate", *args, "--inventory", str(path)])
+        assert result.exit_code == 2, args
+        assert "exactly one" in result.output

@@ -1,7 +1,5 @@
 import getpass
 import os
-import subprocess
-import sys
 import webbrowser
 from datetime import UTC, datetime
 from pathlib import Path
@@ -17,26 +15,6 @@ InventoryOption = Annotated[
     Path, typer.Option("--inventory", envvar="ROTATOR_INVENTORY", help="Inventory file.")
 ]
 
-app = typer.Typer(help="Rotate API keys and tokens.", no_args_is_help=True)
-
-
-def _run(*args: str) -> None:
-    raise typer.Exit(subprocess.call([sys.executable, "-m", *args], cwd=PROJECT_DIR))
-
-
-@app.command(context_settings={"ignore_unknown_options": True})
-def test(
-    args: Annotated[list[str] | None, typer.Argument(help="Extra pytest arguments.")] = None,
-) -> None:
-    """Run the test suite."""
-    _run("pytest", *(args or []))
-
-
-@app.command()
-def lint() -> None:
-    """Check style and import order."""
-    _run("ruff", "check", ".")
-
 
 def _load(path: Path) -> list[inventory.Credential]:
     try:
@@ -46,9 +24,7 @@ def _load(path: Path) -> list[inventory.Credential]:
         raise typer.Exit(1) from e
 
 
-@app.command()
-def check(path: InventoryOption = Path("inventory.yaml")) -> None:
-    """Validate the inventory file."""
+def _check(path: Path) -> None:
     typer.echo(f"{len(_load(path))} credentials ok")
 
 
@@ -75,14 +51,7 @@ def _audit_log(inventory_path: Path) -> AuditLog:
     return AuditLog(Path(os.environ.get("ROTATOR_AUDIT_LOG", default)))
 
 
-@app.command()
-def rotate(
-    credential_id: Annotated[str, typer.Argument(metavar="ID", help="Credential id.")],
-    path: InventoryOption = Path("inventory.yaml"),
-    dry_run: Annotated[bool, typer.Option(help="Show the steps without doing any.")] = False,
-    yes: Annotated[bool, typer.Option("--yes", help="Skip the overwrite confirmation.")] = False,
-) -> None:
-    """Rotate one credential and distribute the new value."""
+def _rotate_one(credential_id: str, path: Path, dry_run: bool, yes: bool) -> None:
     matches = [c for c in _load(path) if c.id == credential_id]
     if not matches:
         typer.echo(f"error: no credential {credential_id} in {path}", err=True)
@@ -119,12 +88,7 @@ def rotate(
     typer.echo(f"{credential.id} rotated")
 
 
-@app.command("due")
-def due_command(
-    path: InventoryOption = Path("inventory.yaml"),
-    within: Annotated[int, typer.Option(help="Days ahead that count as due soon.")] = 14,
-) -> None:
-    """Show when each credential is due; exit 1 if any is overdue."""
+def _due(path: Path, within: int) -> None:
     credentials = _load(path)
     today = datetime.now(UTC).date()
     rows = due.report(credentials, _audit_log(path), today, within)
@@ -133,3 +97,30 @@ def due_command(
         typer.echo(f"{row.status:<14} {row.credential_id:<30} {when}")
     if any(r.status == "overdue" for r in rows):
         raise typer.Exit(1)
+
+
+def rotate(
+    credential_id: Annotated[
+        str | None, typer.Argument(metavar="[ID]", help="Credential to rotate.")
+    ] = None,
+    check: Annotated[bool, typer.Option("--check", help="Validate the inventory file.")] = False,
+    due_flag: Annotated[
+        bool, typer.Option("--due", help="Show when each credential is due; exit 1 if overdue.")
+    ] = False,
+    within: Annotated[
+        int, typer.Option(help="With --due: days ahead that count as due soon.")
+    ] = 14,
+    dry_run: Annotated[bool, typer.Option(help="Show the steps without doing any.")] = False,
+    yes: Annotated[bool, typer.Option("--yes", help="Skip the overwrite confirmation.")] = False,
+    path: InventoryOption = Path("inventory.yaml"),
+) -> None:
+    """Rotate a credential (ID), or with --check / --due inspect the inventory."""
+    if [credential_id is not None, check, due_flag].count(True) != 1:
+        typer.echo("error: give exactly one of ID, --check or --due", err=True)
+        raise typer.Exit(2)
+    if check:
+        _check(path)
+    elif due_flag:
+        _due(path, within)
+    else:
+        _rotate_one(credential_id, path, dry_run, yes)

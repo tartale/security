@@ -12,7 +12,7 @@ Cloudflare, Jira Data Center, Bitwarden) and distributing them to Bitwarden and
 
 Scaffolded: Python 3.11+ with typer, built from scratch (not on keyrotate). Source in
 `src/rotator/`, tests in `tests/`. The CLI is mounted in the root `./security` command and owns dev steps:
-`./security credentials rotator lint|test [pytest args]|check`. Dependencies are pinned by major only. Work is tracked in
+`./security credentials lint|test [pytest args]` and `./security credentials rotate --check`. Dependencies are pinned by major only. Work is tracked in
 GitHub issues; the roadmap in `README.md` maps to them.
 
 ## Hard rules (security)

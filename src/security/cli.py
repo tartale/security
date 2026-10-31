@@ -5,17 +5,30 @@ from typing import Annotated
 
 import typer
 from rotator.cli import PROJECT_DIR as ROTATOR_DIR
-from rotator.cli import rotate
+from rotator.cli import init, rotate
 
 ROOT = Path(__file__).resolve().parents[2]
 CREDENTIAL_PROJECTS = [ROTATOR_DIR]
 PROJECTS = [ROOT, *CREDENTIAL_PROJECTS]
 
 app = typer.Typer(help="Security projects.", no_args_is_help=True)
-credentials = typer.Typer(help="Credential management.", no_args_is_help=True)
+credentials = typer.Typer(help="Credential management.")
 
 app.add_typer(credentials, name="credentials")
 credentials.command("rotate")(rotate)
+
+
+@credentials.callback(invoke_without_command=True)
+def credentials_root(
+    ctx: typer.Context,
+    init_config: Annotated[
+        bool, typer.Option("--init", help="Add providers and credentials interactively.")
+    ] = False,
+) -> None:
+    if init_config:
+        init()
+    elif ctx.invoked_subcommand is None:
+        typer.echo(ctx.get_help())
 
 
 def _run_all(projects: list[Path], *args: str) -> None:

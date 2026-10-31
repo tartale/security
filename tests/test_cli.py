@@ -30,3 +30,14 @@ def test_root_test_and_lint_commands_exist():
     result = runner.invoke(app, ["--help"])
     assert "test" in result.output
     assert "lint" in result.output
+
+
+def test_credentials_offers_init():
+    result = runner.invoke(app, ["credentials", "--help"])
+    assert "--init" in result.output
+
+
+def test_credentials_without_arguments_shows_help():
+    result = runner.invoke(app, ["credentials"])
+    assert result.exit_code == 0
+    assert "rotate" in result.output

@@ -72,8 +72,21 @@ Run from the repo root (the launcher sets up the venv on first use):
 ```
 ./security credentials lint
 ./security credentials test
-./security credentials rotate --check --inventory inventory.yaml   # validate the inventory
+./security credentials rotate --check   # validate the config file
 ```
+
+## Setup
+
+```
+./security credentials --init
+```
+
+Walks you through adding providers (type, shared settings such as a Jira base URL or the env var
+holding a manager token) and then credentials (provider, Bitwarden item, env files, rotation
+period). Everything lives in one file, `credentials/credentials.yaml` (gitignored, mode `0600`;
+override with `ROTATOR_INVENTORY`). Each run starts with empty prompts and keeps what the file
+already holds, saving after every addition. It asks for identifiers and locations only, never
+secret values. `inventory.example.yaml` documents the schema.
 
 ## Usage
 

@@ -75,3 +75,38 @@ def test_check_command(tmp_path):
         app, ["rotate", "--check", "--inventory", str(write(tmp_path, {"id": "x"}))]
     )
     assert bad.exit_code == 1
+
+
+def config_with_provider(**credential):
+    return {
+        "providers": [
+            {"id": "jira", "type": "jira-data-center", "settings": {"base_url": "https://j"}}
+        ],
+        "credentials": [{**valid(), "provider": "jira", "provider_ref": {}, **credential}],
+    }
+
+
+def test_credential_inherits_settings_from_its_named_provider():
+    [credential] = inventory.validate(config_with_provider(), "test")
+    assert credential.provider == "jira-data-center"
+    assert credential.provider_ref == {"base_url": "https://j"}
+
+
+def test_credential_settings_override_the_provider_s():
+    config = config_with_provider(provider_ref={"base_url": "https://other"})
+    [credential] = inventory.validate(config, "test")
+    assert credential.provider_ref == {"base_url": "https://other"}
+
+
+@pytest.mark.parametrize(
+    ("providers", "message"),
+    [
+        ([{"id": "a", "type": "runpod"}, {"id": "a", "type": "runpod"}], "duplicate provider id a"),
+        ([{"id": "github", "type": "runpod"}], "is a provider type"),
+        ([{"id": "a", "type": "nope"}], "type"),
+        ([{"id": "a", "type": "runpod", "settings": []}], "settings"),
+    ],
+)
+def test_bad_provider_entries_are_rejected(providers, message):
+    with pytest.raises(inventory.InventoryError, match=message):
+        inventory.validate({"providers": providers, "credentials": []}, "test")

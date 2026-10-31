@@ -7,12 +7,13 @@ from typing import Annotated
 
 import typer
 
-from rotator import destinations, due, flow, inventory, providers
+from rotator import destinations, due, flow, inventory, providers, wizard
 from rotator.audit import AuditLog
 
 PROJECT_DIR = Path(__file__).resolve().parents[2]
+DEFAULT_CONFIG = PROJECT_DIR.parent / "credentials.yaml"
 InventoryOption = Annotated[
-    Path, typer.Option("--inventory", envvar="ROTATOR_INVENTORY", help="Inventory file.")
+    Path, typer.Option("--inventory", envvar="ROTATOR_INVENTORY", help="Config file.")
 ]
 
 
@@ -112,7 +113,7 @@ def rotate(
     ] = 14,
     dry_run: Annotated[bool, typer.Option(help="Show the steps without doing any.")] = False,
     yes: Annotated[bool, typer.Option("--yes", help="Skip the overwrite confirmation.")] = False,
-    path: InventoryOption = Path("inventory.yaml"),
+    path: InventoryOption = DEFAULT_CONFIG,
 ) -> None:
     """Rotate a credential (ID), or with --check / --due inspect the inventory."""
     if [credential_id is not None, check, due_flag].count(True) != 1:
@@ -124,3 +125,12 @@ def rotate(
         _due(path, within)
     else:
         _rotate_one(credential_id, path, dry_run, yes)
+
+
+def init() -> None:
+    """Add providers and credentials to the config file, keeping what is already there."""
+    try:
+        wizard.run(Path(os.environ.get("ROTATOR_INVENTORY", DEFAULT_CONFIG)))
+    except inventory.InventoryError as e:
+        typer.echo(f"error: {e}", err=True)
+        raise typer.Exit(1) from e

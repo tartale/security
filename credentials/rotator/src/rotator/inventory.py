@@ -1,3 +1,5 @@
+import os
+import tempfile
 from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
@@ -35,6 +37,15 @@ class Destination:
     type: str
     path: Path
     var: str
+
+
+@dataclass(frozen=True)
+class ProviderConfig:
+    """Settings shared by every credential that names this provider by id."""
+
+    id: str
+    type: str
+    settings: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -113,7 +124,7 @@ def _destination(raw: Any, where: str) -> Destination:
     )
 
 
-def _credential(raw: Any, index: int) -> Credential:
+def _credential(raw: Any, index: int, provider_configs: dict[str, ProviderConfig]) -> Credential:
     cred_id = raw.get("id") if isinstance(raw, dict) else None
     where = f"credentials[{index}]" if cred_id is None else f"credential {cred_id}"
     data = _mapping(
@@ -128,9 +139,14 @@ def _credential(raw: Any, index: int) -> Credential:
     provider_ref = data.get("provider_ref", {})
     if not isinstance(provider_ref, dict):
         raise InventoryError(f"{where}.provider_ref: expected a mapping")
+    provider = _choice(data["provider"], f"{where}.provider", PROVIDERS | provider_configs.keys())
+    if provider in provider_configs:
+        configured = provider_configs[provider]
+        provider = configured.type
+        provider_ref = {**configured.settings, **provider_ref}
     return Credential(
         id=_text(data["id"], f"{where}.id"),
-        provider=_choice(data["provider"], f"{where}.provider", PROVIDERS),
+        provider=provider,
         mode=_choice(data["mode"], f"{where}.mode", MODES),
         store=_store(data["store"], f"{where}.store"),
         destinations=[
@@ -145,20 +161,81 @@ def _credential(raw: Any, index: int) -> Credential:
     )
 
 
-def load(path: Path) -> list[Credential]:
+def _provider_config(raw: Any, index: int) -> ProviderConfig:
+    where = f"providers[{index}]"
+    data = _mapping(raw, where, {"id", "type"}, {"settings"})
+    settings = data.get("settings", {})
+    if not isinstance(settings, dict):
+        raise InventoryError(f"{where}.settings: expected a mapping")
+    config = ProviderConfig(
+        id=_text(data["id"], f"{where}.id"),
+        type=_choice(data["type"], f"{where}.type", PROVIDERS),
+        settings=settings,
+    )
+    if config.id in PROVIDERS and config.id != config.type:
+        raise InventoryError(f"{where}.id: {config.id!r} is a provider type; pick another id")
+    return config
+
+
+def _list(data: dict[str, Any], key: str, source: str) -> list[Any]:
+    value = data.get(key, [])
+    if not isinstance(value, list):
+        raise InventoryError(f"{source}: {key} must be a list")
+    return value
+
+
+def _unique(ids: list[str], what: str) -> None:
+    for i, name in enumerate(ids):
+        if name in ids[:i]:
+            raise InventoryError(f"duplicate {what} id {name}")
+
+
+def validate(raw: Any, source: str) -> list[Credential]:
+    """Check a parsed config and return its credentials with provider settings applied."""
+    data = _mapping(raw, source, {"credentials"}, {"providers"})
+    provider_configs = [
+        _provider_config(p, i) for i, p in enumerate(_list(data, "providers", source))
+    ]
+    _unique([p.id for p in provider_configs], "provider")
+    by_id = {p.id: p for p in provider_configs}
+    credentials = [
+        _credential(c, i, by_id) for i, c in enumerate(_list(data, "credentials", source))
+    ]
+    _unique([c.id for c in credentials], "credential")
+    return credentials
+
+
+def _read_yaml(path: Path) -> Any:
     try:
-        raw = yaml.safe_load(path.read_text())
+        return yaml.safe_load(path.read_text())
     except OSError as e:
         raise InventoryError(f"{path}: {e.strerror}") from e
     except yaml.YAMLError as e:
         raise InventoryError(f"{path}: invalid YAML") from e
-    data = _mapping(raw, str(path), {"credentials"}, set())
-    if not isinstance(data["credentials"], list):
-        raise InventoryError(f"{path}: credentials must be a list")
-    credentials = [_credential(c, i) for i, c in enumerate(data["credentials"])]
-    seen: set[str] = set()
-    for c in credentials:
-        if c.id in seen:
-            raise InventoryError(f"duplicate credential id {c.id}")
-        seen.add(c.id)
-    return credentials
+
+
+def load(path: Path) -> list[Credential]:
+    return validate(_read_yaml(path), str(path))
+
+
+def read_raw(path: Path) -> dict[str, Any]:
+    """The file's content for editing; an empty config when the file does not exist."""
+    if not path.exists():
+        return {"providers": [], "credentials": []}
+    raw = _read_yaml(path)
+    validate(raw, str(path))
+    return {"providers": [], **raw}
+
+
+def save(path: Path, data: dict[str, Any]) -> None:
+    """Write a config atomically with mode 0600 once it validates."""
+    validate(data, str(path))
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.")
+    try:
+        with os.fdopen(fd, "w") as f:
+            yaml.safe_dump(data, f, sort_keys=False)
+        os.replace(tmp, path)
+    except BaseException:
+        os.unlink(tmp)
+        raise

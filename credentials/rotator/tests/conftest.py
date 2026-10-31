@@ -5,12 +5,13 @@ import sys
 import pytest
 import typer
 
-from rotator.cli import rotate
+from rotator.cli import init, rotate
 
 # A group (not a lone command) so tests invoke `rotate ...` as the root CLI does.
 app = typer.Typer()
 app.callback()(lambda: None)
 app.command()(rotate)
+app.command("init")(init)
 
 FAKE_BW = f"""#!{sys.executable}
 import base64, json, os, sys

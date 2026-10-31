@@ -91,13 +91,16 @@ Destinations in scope: `envfile` (covers `.env` and `.envrc`) and `bitwarden` (v
 
 ## Inventory
 
-A YAML file listing every credential. The real file is gitignored; ship
-`inventory.example.yaml`. Sketch:
+One YAML file, `credentials/credentials.yaml`, holds the providers and every credential. The real
+file is gitignored; ship `inventory.example.yaml`. `./security credentials --init` builds it
+interactively (`src/rotator/wizard.py`). Sketch:
 
 ```yaml
+providers:                # optional; shared settings, referenced by id
+  - { id: cloudflare, type: cloudflare, settings: { manager_token_env: CLOUDFLARE_ROTATOR_TOKEN } }
 credentials:
   - id: cf-dns-edit
-    provider: cloudflare
+    provider: cloudflare   # a provider id or a provider type
     mode: auto
     provider_ref: { token_id: "<token id>" }
     store: { type: bitwarden, item: "Cloudflare DNS token", field: password }
@@ -107,7 +110,8 @@ credentials:
     grace_days: 0
 ```
 
-`credentials rotate --check` validates the file (unknown fields are rejected so a stray secret value or typo
+A credential naming a provider id takes the provider's type and merges its `settings` under the
+credential's own `provider_ref`. `credentials rotate --check` validates the file (unknown fields are rejected so a stray secret value or typo
 fails loudly). Optional per-credential fields: `kind`, `grace_days` (default 0), `notes`;
 `store.field` defaults to `password`; `last_rotated` (a date) seeds `rotate --due` for
 credentials rotated before the tool existed.

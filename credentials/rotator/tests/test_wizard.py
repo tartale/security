@@ -1,4 +1,5 @@
 import stat
+from pathlib import Path
 
 import pytest
 import yaml
@@ -40,7 +41,22 @@ def test_first_run_builds_a_valid_private_config(tmp_path, monkeypatch):
 def test_later_runs_keep_earlier_providers_and_credentials(tmp_path, monkeypatch):
     path = tmp_path / "credentials.yaml"
     run_init(path, monkeypatch, CLOUDFLARE_PROVIDER + CLOUDFLARE_CREDENTIAL)
-    second = ["y", "runpod", "", "n", "y", "runpod", "rp", "", "~/x/.env", "RP", "n", "30", "n"]
+    second = [
+        "y",
+        "runpod",
+        "",
+        "n",
+        "y",
+        "runpod",
+        "rp",
+        "",
+        "new",
+        "~/x/.env",
+        "RP",
+        "n",
+        "30",
+        "n",
+    ]
     result = run_init(path, monkeypatch, second)
     assert result.exit_code == 0, result.output
     assert "1 providers, 1 credentials kept" in result.output
@@ -117,3 +133,47 @@ def test_every_wizard_provider_builds_a_working_adapter(kind):
     env = {"CLOUDFLARE_ROTATOR_TOKEN": "t", "JIRA_ROTATOR_TOKEN": "t"}
     [loaded] = inventory.validate(config, "test")
     assert providers.for_credential(loaded, env).capability == spec.mode
+
+
+def test_an_existing_env_file_can_be_picked_again(tmp_path, monkeypatch):
+    path = tmp_path / "credentials.yaml"
+    run_init(path, monkeypatch, CLOUDFLARE_PROVIDER + CLOUDFLARE_CREDENTIAL)
+    answers = ["n", "y", "", "cf-two", "abc", "", "~/x/.envrc", "CF2", "n", "", "n"]
+    result = run_init(path, monkeypatch, answers)
+    assert "Env file (~/x/.envrc, new)" in result.output
+    assert [d.path for c in inventory.load(path) for d in c.destinations] == [
+        Path("~/x/.envrc").expanduser()
+    ] * 2
+
+
+def terminal(monkeypatch, answer):
+    asked = {}
+
+    class Question:
+        def ask(self):
+            return answer
+
+    def select(prompt, choices, default):
+        asked.update(prompt=prompt, choices=choices, default=default)
+        return Question()
+
+    monkeypatch.setattr(wizard.sys.stdin, "isatty", lambda: True)
+    monkeypatch.setattr(wizard.sys.stdout, "isatty", lambda: True)
+    monkeypatch.setattr(wizard.questionary, "select", select)
+    return asked
+
+
+def test_terminal_choices_use_an_arrow_key_list(monkeypatch):
+    asked = terminal(monkeypatch, "classic")
+    assert wizard._choose("Token kind", ["fine-grained", "classic"], "fine-grained") == "classic"
+    assert asked == {
+        "prompt": "Token kind",
+        "choices": ["fine-grained", "classic"],
+        "default": "fine-grained",
+    }
+
+
+def test_cancelling_the_list_aborts(monkeypatch):
+    terminal(monkeypatch, None)
+    with pytest.raises(wizard.typer.Abort):
+        wizard._choose("Provider", ["a", "b"])

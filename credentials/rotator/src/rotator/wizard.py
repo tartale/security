@@ -107,7 +107,10 @@ def _new_id(prompt: str, taken: set[str], default: str | None = None) -> str:
 def _add_provider(data: dict[str, Any], path: Path) -> None:
     kind = _choose("Provider type", sorted(SPECS))
     taken = {p["id"] for p in data["providers"]} | set(inventory.PROVIDERS) - {kind}
-    entry: dict[str, Any] = {"id": _new_id("Provider id", taken, kind), "type": kind}
+    entry: dict[str, Any] = {
+        "id": _new_id("Name for this provider (credentials refer to it)", taken, kind),
+        "type": kind,
+    }
     settings = _fields(SPECS[kind].settings)
     if settings:
         entry["settings"] = settings
@@ -149,7 +152,10 @@ def _add_credential(data: dict[str, Any], path: Path) -> None:
     ]
     spec = SPECS[provider["type"]]
     entry: dict[str, Any] = {
-        "id": _new_id("Credential id", {c["id"] for c in data["credentials"]}),
+        "id": _new_id(
+            "Name for this credential (used as `rotate <name>`)",
+            {c["id"] for c in data["credentials"]},
+        ),
         "provider": provider["id"],
         "mode": spec.mode,
     }

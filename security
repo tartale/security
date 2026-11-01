@@ -1,13 +1,28 @@
 #!/usr/bin/env bash
-# Root CLI launcher. Creates the venv on first run, then hands off to the typer app.
+# Root CLI launcher. Creates this environment's venv and installs the projects on first run and
+# whenever a pyproject.toml changes (a new dependency), then hands off to the typer app.
+# The venv is per environment (os, arch, repo path); see src/security/venvpath.py.
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-venv="${SECURITY_VENV:-$root/.venv}"
+venv="${SECURITY_VENV:-$(python3 "$root/src/security/venvpath.py")}"
+stamp="$venv/.installed"
 
-if [[ ! -x "$venv/bin/security" ]]; then
+# A venv that cannot run its own interpreter is rebuilt; this environment's tag is its own.
+if [[ -d "$venv" ]] && ! "$venv/bin/python" -c 'pass' 2>/dev/null; then
+  rm -rf "$venv"
+fi
+
+stale=false
+[[ -x "$venv/bin/security" && -f "$stamp" ]] || stale=true
+for pyproject in "$root/pyproject.toml" "$root/credentials/rotator/pyproject.toml"; do
+  if [[ "$pyproject" -nt "$stamp" ]]; then stale=true; fi
+done
+
+if [[ "$stale" == true ]]; then
   [[ -d "$venv" ]] || python3 -m venv "$venv"
   "$venv/bin/pip" install --quiet -e "$root/credentials/rotator[dev]" -e "$root[dev]"
+  touch "$stamp"
 fi
 
 exec "$venv/bin/security" "$@"

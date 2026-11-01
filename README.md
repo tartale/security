@@ -9,8 +9,9 @@ Personal security tooling. One root CLI, `./security`, controls every subproject
 ./security test                         # test every project
 ```
 
-The first run creates `.venv` and installs the projects into it (override the location with
-`SECURITY_VENV`). New subprojects are mounted in `src/security/cli.py`.
+The first run creates this environment's venv, `.venvs/<os>-<arch>-<repo path hash>`, and installs
+the projects into it. Each machine or container sharing the checkout gets its own; override the
+location with `SECURITY_VENV`. New subprojects are mounted in `src/security/cli.py`.
 
 | Path | What |
 |---|---|

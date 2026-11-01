@@ -6,3 +6,4 @@ __pycache__/
 .ruff_cache/
 credentials/credentials.yaml
 credentials/audit.log
+.venvs/

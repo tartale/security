@@ -7,10 +7,9 @@ metadata:
 
 - **No CI, by decision (2026-10-26).** Single-user tool; run `./security lint` and `./security test`
   locally before merging. The gh token also lacks `workflow` scope, so a workflow file cannot be pushed.
-- **Sandbox venv:** `python3 -m venv` has no ensurepip until the image is rebuilt with the python3
-  plugin (enabled in `.claude/sandbox/plugin.sh`). Interim venv: `python3 -m venv --without-pip
-  .tmp/venv` + get-pip, then `export SECURITY_VENV=/workspace/.tmp/venv` before `./security`.
-  The `./security` first-run bootstrap and a fresh-environment test run are therefore unverified.
+- **Sandbox venv:** ensurepip works now (python3 plugin in `.claude/sandbox/plugin.sh`) and a fresh
+  venv was verified (2026-10-31). `./security` uses `.venvs/<os>-<arch>-<hash>` per environment; the
+  sandbox keeps using `export SECURITY_VENV=/workspace/.tmp/venv`.
 - **Docs:** `credentials/rotator/CLAUDE.md` and `README.md` were created mode 444; the user allowed
   edits (`chmod u+w`).
 - **Untracked local files** `.envrc`, `.envrc-cs`, `.env` belong to the user; never `git add -A`
